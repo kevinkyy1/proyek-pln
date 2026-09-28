@@ -40,7 +40,7 @@ class ImportBatchController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:204800'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:2048'],
         ], attributes: ['file' => 'file Excel']);
 
         $uploaded = $validated['file'];
@@ -60,7 +60,7 @@ class ImportBatchController extends Controller
     public function storeChunk(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'chunk' => ['required', 'file', 'max:12288'],
+            'chunk' => ['required', 'file', 'max:2048'],
             'upload_id' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{6,64}$/'],
             'chunk_index' => ['required', 'integer', 'min:0'],
             'total_chunks' => ['required', 'integer', 'min:1', 'max:5000'],

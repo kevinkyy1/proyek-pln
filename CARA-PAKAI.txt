@@ -53,20 +53,13 @@ c) Node.js LTS (untuk membangun tampilan dan grafik)
 
 d) (Opsional) Git for Windows, kalau ingin memakai riwayat versi.
 
-e) Pastikan ekstensi PHP berikut aktif di C:\xampp\php\php.ini,
-   caranya hilangkan tanda ";" di awal barisnya:
-       extension=pdo_mysql
-       extension=zip
-       extension=fileinfo
-       extension=gd
-       extension=mbstring
-       extension=openssl
-       extension=curl
-       extension=bcmath
-       extension=xml
-       extension=dom
-       extension=xmlreader
-   Lalu simpan dan tutup semua terminal lama.
+e) Pastikan ekstensi PHP berikut aktif:
+       pdo_mysql, dom, xml, xmlreader, xmlwriter, zip, fileinfo, openssl,
+       mbstring, curl
+   Di XAMPP ekstensi tersebut sudah aktif sejak pemasangan. Cara memeriksa:
+       php -m
+   Kalau ada yang belum aktif, buka C:\xampp\php\php.ini, hilangkan tanda
+   ";" di awal barisnya, simpan, lalu tutup semua terminal lama dan buka lagi.
 
 
 -------------------------------------------------------------------------
@@ -112,14 +105,10 @@ e) Pastikan ekstensi PHP berikut aktif di C:\xampp\php\php.ini,
   8) Pasang dependensi tampilan
        npm install
 
-  9) Naikkan batas PHP supaya tahan file Excel besar.
-     Buka C:\xampp\php\php.ini, ubah baris berikut (tanda ; di depan dihapus):
-       upload_max_filesize = 200M
-       post_max_size       = 210M
-       memory_limit        = -1
-       max_execution_time  = 0
-     Simpan, lalu tutup terminal dan buka lagi (perubahan ini dibaca saat
-     proses baru dijalankan).
+  9) php.ini TIDAK perlu disunting.
+     Aplikasi sudah disetel agar jalan dengan nilai bawaan PHP, karena berkas
+     Excel diunggah bertahap 1 MB per permintaan (lihat bagian 7). Kalau di
+     komputer Anda batasnya justru dinaikkan, aplikasi tetap jalan normal.
 
   Catatan: berkas .env, folder vendor, dan folder node_modules tidak ikut
   di dalam arsip ZIP, jadi langkah 3, 4, dan 8 harus dijalankan setelah
@@ -139,7 +128,10 @@ Pastikan MySQL sudah jalan dari XAMPP Control Panel.
       npm run dev
 
   Jendela 3 - worker antrean (wajib saat mengimpor data)
-      php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+      php artisan queue:work --tries=3 --sleep=1 --memory=128 --timeout=3600
+      (--memory=128 sama dengan nilai bawaan Laravel. Saat diuji dengan file
+       45 MB, pemakaian memori worker hanya sekitar 50 MB, jadi 128 MB aman
+       dan tidak melampaui memory_limit bawaan PHP)
 
 Lalu buka peramban:  http://localhost:8000
 
@@ -149,7 +141,7 @@ Keterangan tambahan
 - Port 8000 sedang dipakai program lain? Pakai --port=8001, dan ubah
   APP_URL di .env menjadi http://localhost:8001.
 - Ingin worker tetap jalan sambil jendela ditutup? Jalankan:
-  start /B php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+  start /B php artisan queue:work --tries=3 --sleep=1 --memory=128 --timeout=3600
   Tetapi menjalankannya di jendela tersendiri lebih enak, karena progres
   job bisa dilihat langsung.
 - Komputer ini mati/restart, ulangi lagi bagian 4 (lihat juga bagian 10).
@@ -161,8 +153,8 @@ Keterangan tambahan
 a) Mengimpor data
    1. Klik tombol "Import Excel" di kanan atas.
    2. Pilih berkas .xlsx (isinya sheet MASTER), lalu klik Upload.
-   3. Berkas dikirim ke server bertahap 4 MB per bagian, jadi file besar
-      tidak mentok di batas post_max_size PHP.
+   3. Berkas dikirim ke server bertahap 1 MB per bagian, jadi file besar
+      tidak mentok di batas unggah bawaan PHP.
    4. PENTING: impor bersifat ganti-total. Tabel pelanggan dan
       pemakaian_bulanan dikosongkan dulu, baru diisi data baru. Jangan
       mengimpor ketika masih ada batch yang sedang berjalan.
@@ -226,7 +218,7 @@ c) Grafik tren pemakaian
 config/import.php
     sheet              nama sheet sumber (default MASTER)
     chunk_size         jumlah baris per job (default 20000)
-    upload_chunk_size  ukuran potongan unggah dari browser (default 4 MB)
+    upload_chunk_size  ukuran potongan unggah dari browser (default 1 MB)
     data_start_row     baris awal data (default 3)
     periode_start/count  hanya cadangan tampilan kalau belum ada import;
                        kolom bulan normalnya dibaca dari header berkas
@@ -238,6 +230,19 @@ config/queue.php
 .env
     QUEUE_CONNECTION=database   antrean disimpan di tabel jobs
     APP_URL                     harus sama dengan alamat yang dibuka di browser
+
+php.ini (C:\xampp\php\php.ini) - TIDAK perlu diubah
+    Nilai bawaan PHP sudah cukup untuk aplikasi ini:
+        upload_max_filesize = 2M     cukup, karena tiap permintaan unggah ~1 MB
+        post_max_size       = 8M     cukup, karena tiap permintaan unggah ~1 MB
+        memory_limit        = 128M   cukup; worker dijalankan dengan --memory=128
+                                     (uji nyata file 45 MB: puncak ~50 MB)
+        max_execution_time  = 30     tidak berpengaruh pada worker (di mode
+                                     terminal/CLI PHP memaksa nilai ini 0)
+    Cara memeriksa nilai yang sedang dipakai:
+        php -r "foreach(['upload_max_filesize','post_max_size','memory_limit'] as $k) echo $k, ' = ', ini_get($k), PHP_EOL;"
+    Kalau komputer Anda sudah memakai nilai lebih besar, tidak masalah —
+    aplikasi tetap jalan.
 
 
 -------------------------------------------------------------------------
@@ -257,8 +262,10 @@ config/queue.php
   (queue:work) benar-benar berjalan.
 
 - Muncul "The POST data is too large"
-  post_max_size di php.ini belum terbaca. Tutup semua proses PHP lama
-  (Task Manager), lalu jalankan lagi "php artisan serve".
+  Ukuran potongan unggah melebihi post_max_size. Aplikasi memakai 1 MB per
+  potongan, jadi dengan nilai bawaan PHP (8M) ini tidak terjadi. Kalau Anda
+  pernah menaikkan konfigurasi dan lalu mengembalikannya, tutup semua proses
+  PHP lama (Task Manager) lalu jalankan lagi "php artisan serve".
 
 - Job gagal berulang
       php artisan queue:failed          (lihat daftar job gagal)
@@ -266,8 +273,10 @@ config/queue.php
       notepad storage\logs\laravel.log  (lihat keterangan kesalahan)
 
 - Worker berhenti sendiri di tengah import
-  Batas memori worker kurang. Pastikan memakai --memory=1024 dan
-  --timeout=3600.
+  Pemakaian memori job melewati batas --memory. Pakai --memory=128 dan
+  --timeout=3600. Untuk file Excel yang jauh lebih besar (mis. di atas
+  100 MB), naikkan memory_limit di php.ini lebih dulu (mis. 512M atau -1),
+  baru naikkan --memory.
 
 - Sudah mengubah program di app\Jobs tetapi perilakunya tidak berubah
   Worker masih memuat kode lama. Jalankan:
@@ -281,6 +290,11 @@ config/queue.php
   Pastikan MySQL berjalan normal dan jangan menjalankan banyak worker
   sekaligus (1 worker sudah cukup). Bisa juga menaikkan innodb_buffer_pool_size
   di C:\xampp\mysql\bin\my.ini (mis. 512M) lalu restart MySQL.
+
+- Ingin unggahan lebih cepat
+  Naikkan upload_chunk_size di config/import.php (atau tulis
+  IMPORT_UPLOAD_CHUNK_SIZE di .env) menjadi mis. 8 MB, TAPI nilai
+  post_max_size dan upload_max_filesize di php.ini harus lebih besar dari itu.
 
 - Tabel kosong setelah import selesai
   Periksa jumlah barisnya lewat phpMyAdmin, atau:
@@ -315,7 +329,7 @@ config/queue.php
     1. XAMPP Control Panel -> Start MySQL
     2. Jendela 1: php artisan serve --host=127.0.0.1 --port=8000
     3. Jendela 2: npm run dev
-    4. Jendela 3: php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+    4. Jendela 3: php artisan queue:work --tries=3 --sleep=1 --memory=128 --timeout=3600
     5. Buka browser: http://localhost:8000
     6. Import data, lihat tabel, klik IDPEL untuk melihat grafik tren
 

@@ -19,8 +19,11 @@ return [
     /*
      * Ukuran potongan upload dari browser (byte). File besar dikirim bertahap
      * lewat fetch supaya tidak kena batas post_max_size PHP.
+     *
+     * 1 MB dipilih supaya aman dengan nilai bawaan php.ini (upload_max_filesize
+     * 2M / post_max_size 8M): tiap permintaan hanya ~1 MB.
      */
-    'upload_chunk_size' => (int) env('IMPORT_UPLOAD_CHUNK_SIZE', 4 * 1024 * 1024),
+    'upload_chunk_size' => (int) env('IMPORT_UPLOAD_CHUNK_SIZE', 1024 * 1024),
 
     /*
      * Layout sheet MASTER:
