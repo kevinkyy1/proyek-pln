@@ -1,0 +1,264 @@
+=========================================================================
+PANDUAN MENJALANKAN APLIKASI DI KOMPUTER LOKAL
+Aplikasi Data Table Pemakaian Pelanggan (import Excel TO LPB)
+=========================================================================
+
+Isi berkas ini
+  1. Tentang aplikasi
+  2. Prasyarat
+  3. Catatan lingkungan komputer ini (distrobox)
+  4. Instalasi dari nol
+  5. Menjalankan aplikasi (3 proses)
+  6. Cara pakai di browser
+  7. Format file Excel yang bisa diimpor
+  8. Konfigurasi penting
+  9. Kalau ada masalah (troubleshooting)
+ 10. Perintah yang sering dipakai
+
+
+-------------------------------------------------------------------------
+1. TENTANG APLIKASI
+-------------------------------------------------------------------------
+- Kerangka   : Laravel 12 (PHP >= 8.2), basis data MySQL
+- Fungsi     : menampilkan data pemakaian listrik per pelanggan (IDPEL) seperti
+               sheet MASTER pada file Excel TO LPB, plus grafik tren pemakaian.
+- Data        disimpan ternormalisasi di dua tabel:
+                 pelanggan          (idpel, nama, tarif, daya)
+                 pemakaian_bulanan  (idpel, periode, kwh)  -> satu baris per bulan
+- Import memakai antrean (queue) bertahap: file besar dibaca streaming
+  (openspout), dipotong per 20.000 baris, tiap potongan diproses job terpisah,
+  sehingga file 45-55 MB / 160 ribu baris tidak perlu dimuat ke memori.
+- Karena itu WAJIB ada queue worker yang jalan saat mengimpor.
+
+
+-------------------------------------------------------------------------
+2. PRASYARAT
+-------------------------------------------------------------------------
+- PHP >= 8.2 (di komputer ini terpasang PHP 8.5 di dalam container)
+  Ekstensi yang dipakai: pdo_mysql, zip, dom, xmlreader, mbstring, gd, bcmath
+- Composer 2
+- MySQL 8 (host 127.0.0.1, port 3306, user root, tanpa kata sandi)
+- Node.js + npm (untuk Vite/aset dan chart.js)
+- Peramban (Chrome/Firefox)
+
+
+-------------------------------------------------------------------------
+3. CATATAN LINGKUNGAN KOMPUTER INI (DISTROBOX)
+-------------------------------------------------------------------------
+Host SteamOS tidak punya PHP/Composer, jadi semua perintah PHP, composer, dan
+npm dijalankan di dalam container distrobox bernama "my-ubuntu".
+
+Pola perintahnya:
+
+  ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -lc 'cd /home/deck/Documents/pln && <perintah>'
+
+Contoh:
+
+  ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -lc 'cd /home/deck/Documents/pln && php artisan migrate --force'
+
+Kalau menjalankan di komputer lain yang PHP-nya terpasang langsung (mis. Ubuntu),
+perintah di dalam tanda kutip itu bisa dipakai apa adanya tanpa distrobox-enter.
+
+
+-------------------------------------------------------------------------
+4. INSTALASI DARI NOL
+-------------------------------------------------------------------------
+Jalankan semuanya dari dalam folder project /home/deck/Documents/pln.
+
+  1) Masuk shell container
+       ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -l
+       cd /home/deck/Documents/pln
+
+  2) Pasang dependensi PHP
+       composer install
+
+  3) Siapkan berkas lingkungan
+       cp .env.example .env
+       php artisan key:generate
+
+  4) Isi .env dengan nilai berikut (sesuaikan bila MySQL Anda beda)
+       APP_ENV=local
+       APP_DEBUG=true
+       APP_URL=http://localhost:8000
+       DB_CONNECTION=mysql
+       DB_HOST=127.0.0.1
+       DB_PORT=3306
+       DB_DATABASE=pln
+       DB_USERNAME=root
+       DB_PASSWORD=
+       QUEUE_CONNECTION=database
+
+  5) Buat basis datanya
+       mysql -h127.0.0.1 -uroot -e "create database pln character set utf8mb4 collate utf8mb4_unicode_ci"
+
+  6) Buat tabel-tabelnya
+       php artisan migrate --force
+
+  7) Pasang dependensi aset
+       npm install
+
+  8) Naikkan batas unggah PHP (perlu untuk file Excel besar)
+       Sunting php.ini CLI, mis. /etc/php/8.5/cli/php.ini, lalu set:
+         upload_max_filesize = 200M
+         post_max_size       = 210M
+         memory_limit        = -1
+       wajib menyalakan ulang "php artisan serve" setelah mengubah ini.
+
+  Catatan: berkas .env, folder vendor/ dan node_modules/ tidak ikut di dalam
+  arsip zip, jadi langkah 2, 3, dan 7 harus dijalankan setelah mengekstrak.
+
+
+-------------------------------------------------------------------------
+5. MENJALANKAN APLIKASI (3 PROSES)
+-------------------------------------------------------------------------
+Buka 2-3 terminal. Masing-masing perintah di bawah dijalankan dari dalam
+container (lihat bagian 3).
+
+  Terminal 1 - server aplikasi
+      php artisan serve --host=127.0.0.1 --port=8000
+
+  Terminal 2 - Vite (aset + chart.js saat mode pengembangan)
+      npm run dev
+      (Vite jalan di port 5173; berkas public/hot menunjuk ke sana)
+
+  Terminal 3 - queue worker (wajib ada supaya import berjalan)
+      bash ops/worker.sh
+      atau kalau tidak ingin lewat skrip:
+      php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+
+  Lalu buka peramban:  http://localhost:8000
+
+  Di komputer ini worker juga sudah didaftarkan sebagai systemd user unit:
+      systemctl --user status  pln-queue-1
+      systemctl --user restart pln-queue-1     (ulangi untuk pln-queue-2, -3)
+  Unit tersebut sebenarnya menjalankan berkas yang sama, yaitu ops/worker.sh.
+
+  Untuk mode produksi (tanpa Vite): jalankan "npm run build" sekali, lalu
+  cukup "php artisan serve".
+
+
+-------------------------------------------------------------------------
+6. CARA PAKAI DI BROWSER
+-------------------------------------------------------------------------
+a) Import data
+   1. Klik tombol "Import Excel" di kanan atas.
+   2. Pilih berkas .xlsx (isi sheet MASTER) lalu klik Upload.
+   3. Berkas dikirim bertahap 4 MB per bagian, jadi tidak kena batas
+      post_max_size PHP.
+   4. PERHATIAN: import bersifat ganti-total. Tabel pelanggan dan
+      pemakaian_bulanan dikosongkan dulu, baru diisi data baru. Jangan
+      mengimpor saat sedang ada batch berjalan.
+   5. Pantau panel "Riwayat import (5 terakhir)" yang menyegarkan sendiri
+      tiap 5 detik: queued -> preparing (baca berkas & deteksi kolom) ->
+      processing (mis. 40.000/160.564 baris) -> completed (atau failed).
+
+b) Melihat tabel
+   - Kotak "Cari": mencari IDPEL, NAMA, atau TARIF (tekan tombol Cari / Enter,
+     bukan hanya mengetik).
+   - Pilihan baris per halaman: 25 / 50 / 100 / 250, ditambah navigasi halaman.
+   - Kolom bulan mengikuti header berkas yang terakhir diimpor. Kalau di Excel
+     Anda menambah kolom 202701 lalu impor ulang, kolom itu ikut muncul.
+   - Tiap tahun punya tiga kolom RATA2: PEM (rata-rata kWh bulan yang ada
+     datanya), JN = PEM x 1000 / DAYA, dan KET
+     (rumus: IF(JN<1,"TBT", IF(JN>40,"NORMAL","40JN"))).
+   - Angka ditampilkan bulat mengikuti format sel Excel, nilai aslinya tetap
+     desimal di basis data.
+   - Kolom No, IDPEL, dan NAMA tetap menempel saat tabel digeser ke samping.
+
+c) Grafik tren pemakaian
+   - Klik salah satu nilai IDPEL pada tabel.
+   - Muncul modal "Tren Pemakaian" berisi:
+       * tabel nilai per bulan: baris PEM dan JAM NYALA (angka bulat),
+       * grafik garis dua deret: PEM (sumbu kiri, kWh) dan JAM NYALA
+         (sumbu kanan) = PEM x 1000 / DAYA.
+   - Sumbu X menampilkan bulan beserta nilai PEM dan JN di bawahnya; kalau
+     layar sempit, label dijarangkan dan grafik bisa digeser ke samping.
+   - Bulan yang belum ada nilainya digambar 0 (mengikuti rumus sheet GRAFIK
+     Excel yang memakai default "0").
+
+
+-------------------------------------------------------------------------
+7. FORMAT FILE EXCEL YANG BISA DIIMPOR
+-------------------------------------------------------------------------
+- Nama sheet sumber: MASTER (bisa diubah di config/import.php, kunci "sheet").
+- Baris 1: header. Kolom identitas: A=IDPEL, B=NAMA, C=TARIF, D=DAYA.
+  Kolom berikutnya berisi bulan dengan format YYYYMM (202401, 202402, ...).
+  Kolom bulan dikenali otomatis dari header, jumlahnya bebas.
+- Baris 2: sub-header (PEM/JN/KET) - diabaikan aplikasi.
+- Baris 3 dan seterusnya: data pelanggan.
+- Kolom RATA2 di berkas tidak dibaca; aplikasi menghitungnya sendiri.
+- Baris yang sedang disembunyikan filter Excel tetap ikut diimpor (semua baris
+  dibaca apa adanya).
+- Kolom DAYA dipakai untuk menghitung Jam Nyala, jadi sebaiknya terisi.
+
+
+-------------------------------------------------------------------------
+8. KONFIGURASI PENTING
+-------------------------------------------------------------------------
+config/import.php
+    sheet              nama sheet sumber (default MASTER)
+    chunk_size         baris per job chunk (default 20000)
+    upload_chunk_size  ukuran potongan unggah dari browser (default 4 MB)
+    data_start_row     baris awal data (default 3)
+    periode_start/count  hanya cadangan tampilan kolom bulan kalau belum ada
+                       satu pun import (kolom bulan normalnya dari header file)
+
+config/queue.php
+    retry_after = 3600  job chunk butuh waktu lama; nilai kecil membuat job
+                        dianggap gagal lalu diulang saat masih berjalan
+
+.env
+    QUEUE_CONNECTION=database   antrean disimpan di tabel jobs
+
+
+-------------------------------------------------------------------------
+9. KALAU ADA MASALAH (TROUBLESHOOTING)
+-------------------------------------------------------------------------
+- Import berhenti di "0 / N baris" atau status queued terus
+  Penyebab tersering: queue worker tidak jalan. Cek dengan
+      systemctl --user status pln-queue-1
+  atau jalankan manual: bash ops/worker.sh
+
+- Muncul "The POST data is too large"
+  post_max_size di php.ini belum berlaku. Pastikan tidak ada proses
+  "php artisan serve" lama yang masih memegang port 8000, lalu jalankan ulang.
+
+- Job gagal berulang
+      php artisan queue:failed      (daftar job gagal)
+      php artisan queue:retry all   (coba lagi)
+      tail -n 50 storage/logs/laravel.log
+
+- Worker keluar sendiri (exit code 12) di tengah import
+  Batas memori worker terlalu kecil. Selalu pakai --memory=1024.
+
+- Sudah mengubah kode di app/Jobs tapi perilakunya tidak berubah
+  Worker memuat kode lama di memori. Jalankan:
+      php artisan queue:restart
+
+- Tabel kosong setelah import selesai
+  Cek jumlah barisnya di database:
+      mysql -h127.0.0.1 -uroot -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
+
+
+-------------------------------------------------------------------------
+10. PERINTAH YANG SERING DIPAKAI
+-------------------------------------------------------------------------
+    # jumlah data
+    mysql -h127.0.0.1 -uroot -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
+
+    # riwayat import
+    mysql -h127.0.0.1 -uroot -D pln -e "select id, file_name, status, total_rows, processed_rows from import_batches order by id desc limit 5"
+
+    # daftar periode yang ada datanya
+    mysql -h127.0.0.1 -uroot -D pln -e "select periode, count(*) from pemakaian_bulanan group by periode order by periode"
+
+    # kosongkan semua data dan bangun ulang tabel
+    php artisan migrate:fresh --force
+
+    # muat ulang kode job di worker
+    php artisan queue:restart
+
+    # build aset untuk produksi
+    npm run build
+
+Selamat bekerja.

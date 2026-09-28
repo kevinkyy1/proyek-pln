@@ -24,10 +24,15 @@ return [
 
     /*
      * Layout sheet MASTER:
-     *   baris 1 = header periode (IDPEL, NAMA, TARIF, DAYA, 202401, ..., 202612, RATA2 ...)
+     *   baris 1 = header (IDPEL, NAMA, TARIF, DAYA, 202401, 202402, ..., RATA2 ...)
      *   baris 2 = sub-header khusus kolom RATA2 (PEM, JN, KET)
      *   baris 3 = awal data
-     * Kolom periode mulai dari kolom ke-5 (index 4) sebanyak 36 bulan.
+     *
+     * Kolom bulan TIDAK dipatok di sini: semua kolom header yang berbentuk
+     * YYYYMM (202401, 202402, ..., 202701) dikenali otomatis saat import,
+     * lalu daftar itu disimpan per batch (import_batches.periode_list) dan
+     * dipakai sebagai kolom tabel. Kunci periode_* di bawah hanya cadangan
+     * tampilan kalau belum ada satu pun import.
      */
     'data_start_row' => (int) env('IMPORT_DATA_START_ROW', 3),
     'periode_start_index' => 4,
