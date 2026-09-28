@@ -1,82 +1,93 @@
 =========================================================================
-PANDUAN MENJALANKAN APLIKASI DI KOMPUTER LOKAL
+PANDUAN MENJALANKAN APLIKASI DI WINDOWS
 Aplikasi Data Table Pemakaian Pelanggan (import Excel TO LPB)
 =========================================================================
 
 Isi berkas ini
   1. Tentang aplikasi
-  2. Prasyarat
-  3. Catatan lingkungan komputer ini (distrobox)
-  4. Instalasi dari nol
-  5. Menjalankan aplikasi (3 proses)
-  6. Cara pakai di browser
-  7. Format file Excel yang bisa diimpor
-  8. Konfigurasi penting
-  9. Kalau ada masalah (troubleshooting)
- 10. Perintah yang sering dipakai
+  2. Yang harus dipasang (sekali saja)
+  3. Menyiapkan project
+  4. Menjalankan aplikasi (3 jendela)
+  5. Cara pakai di browser
+  6. Format file Excel yang bisa diimpor
+  7. Konfigurasi penting
+  8. Kalau ada masalah
+  9. Perintah yang sering dipakai
+ 10. Ringkasan cepat (tiap kali mau bekerja)
 
 
 -------------------------------------------------------------------------
 1. TENTANG APLIKASI
 -------------------------------------------------------------------------
-- Kerangka   : Laravel 12 (PHP >= 8.2), basis data MySQL
-- Fungsi     : menampilkan data pemakaian listrik per pelanggan (IDPEL) seperti
-               sheet MASTER pada file Excel TO LPB, plus grafik tren pemakaian.
-- Data        disimpan ternormalisasi di dua tabel:
-                 pelanggan          (idpel, nama, tarif, daya)
-                 pemakaian_bulanan  (idpel, periode, kwh)  -> satu baris per bulan
-- Import memakai antrean (queue) bertahap: file besar dibaca streaming
-  (openspout), dipotong per 20.000 baris, tiap potongan diproses job terpisah,
-  sehingga file 45-55 MB / 160 ribu baris tidak perlu dimuat ke memori.
-- Karena itu WAJIB ada queue worker yang jalan saat mengimpor.
+- Kerangka    : Laravel 12 (butuh PHP 8.2 atau lebih baru), basis data MySQL
+- Fungsi      : menampilkan data pemakaian listrik per pelanggan (IDPEL)
+                seperti sheet MASTER pada file Excel TO LPB, lengkap dengan
+                grafik tren pemakaian.
+- Data disimpan di dua tabel:
+      pelanggan          (idpel, nama, tarif, daya)
+      pemakaian_bulanan  (idpel, periode, kwh)   -> satu baris per bulan
+- File Excel yang besar (45-55 MB, sekitar 160 ribu baris) dibaca bertahap
+  lewat antrean (queue): dipotong 20.000 baris per job.
+  Sebab itu WAJIB ada queue worker yang berjalan saat mengimpor.
 
 
 -------------------------------------------------------------------------
-2. PRASYARAT
+2. YANG HARUS DIPASANG (SEKALI SAJA)
 -------------------------------------------------------------------------
-- PHP >= 8.2 (di komputer ini terpasang PHP 8.5 di dalam container)
-  Ekstensi yang dipakai: pdo_mysql, zip, dom, xmlreader, mbstring, gd, bcmath
-- Composer 2
-- MySQL 8 (host 127.0.0.1, port 3306, user root, tanpa kata sandi)
-- Node.js + npm (untuk Vite/aset dan chart.js)
-- Peramban (Chrome/Firefox)
+a) XAMPP versi PHP 8.2 atau lebih baru
+   - Unduh di https://www.apachefriends.org (pilih versi 8.2.x / 8.3.x / 8.4.x)
+   - Pasang misalnya di C:\xampp
+   - Apache TIDAK wajib dijalankan; yang wajib hanya MySQL
+   (Alternatif: Laragon, isinya sama: PHP + MySQL + composer)
+
+b) Composer (pengelola paket PHP)
+   - Unduh Composer-Setup.exe di https://getcomposer.org/download
+   - Saat pemasangan, arahkan ke php.exe milik XAMPP, contoh:
+     C:\xampp\php\php.exe
+   - Periksa di PowerShell:  composer -V
+   - Kalau Anda memakai composer.phar, gantinya: php composer.phar install
+
+c) Node.js LTS (untuk membangun tampilan dan grafik)
+   - Unduh di https://nodejs.org (pilih versi LTS, 20 atau lebih baru)
+   - Periksa:  node -v   dan   npm -v
+
+d) (Opsional) Git for Windows, kalau ingin memakai riwayat versi.
+
+e) Pastikan ekstensi PHP berikut aktif di C:\xampp\php\php.ini,
+   caranya hilangkan tanda ";" di awal barisnya:
+       extension=pdo_mysql
+       extension=zip
+       extension=fileinfo
+       extension=gd
+       extension=mbstring
+       extension=openssl
+       extension=curl
+       extension=bcmath
+       extension=xml
+       extension=dom
+       extension=xmlreader
+   Lalu simpan dan tutup semua terminal lama.
 
 
 -------------------------------------------------------------------------
-3. CATATAN LINGKUNGAN KOMPUTER INI (DISTROBOX)
+3. MENYIAPKAN PROJECT
 -------------------------------------------------------------------------
-Host SteamOS tidak punya PHP/Composer, jadi semua perintah PHP, composer, dan
-npm dijalankan di dalam container distrobox bernama "my-ubuntu".
+  1) Ekstrak salinan project ini ke folder kerja, misalnya
+       C:\xampp\htdocs\pln
+     (boleh juga C:\proyek\pln, lokasinya bebas)
 
-Pola perintahnya:
+  2) Buka PowerShell di folder tersebut:
+       buka foldernya di File Explorer, klik kanan sambil menekan Shift,
+       pilih "Open PowerShell window here"
 
-  ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -lc 'cd /home/deck/Documents/pln && <perintah>'
-
-Contoh:
-
-  ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -lc 'cd /home/deck/Documents/pln && php artisan migrate --force'
-
-Kalau menjalankan di komputer lain yang PHP-nya terpasang langsung (mis. Ubuntu),
-perintah di dalam tanda kutip itu bisa dipakai apa adanya tanpa distrobox-enter.
-
-
--------------------------------------------------------------------------
-4. INSTALASI DARI NOL
--------------------------------------------------------------------------
-Jalankan semuanya dari dalam folder project /home/deck/Documents/pln.
-
-  1) Masuk shell container
-       ~/.local/bin/distrobox-enter -n my-ubuntu -- bash -l
-       cd /home/deck/Documents/pln
-
-  2) Pasang dependensi PHP
+  3) Pasang dependensi PHP
        composer install
 
-  3) Siapkan berkas lingkungan
-       cp .env.example .env
+  4) Siapkan berkas pengaturan lingkungan
+       copy .env.example .env
        php artisan key:generate
 
-  4) Isi .env dengan nilai berikut (sesuaikan bila MySQL Anda beda)
+  5) Sunting berkas .env pakai Notepad, isi seperti ini:
        APP_ENV=local
        APP_DEBUG=true
        APP_URL=http://localhost:8000
@@ -87,178 +98,225 @@ Jalankan semuanya dari dalam folder project /home/deck/Documents/pln.
        DB_USERNAME=root
        DB_PASSWORD=
        QUEUE_CONNECTION=database
+     (DB_PASSWORD dibiarkan kosong kalau MySQL XAMPP belum diberi sandi)
 
-  5) Buat basis datanya
-       mysql -h127.0.0.1 -uroot -e "create database pln character set utf8mb4 collate utf8mb4_unicode_ci"
+  6) Buat basis datanya, salah satu cara:
+     - lewat phpMyAdmin: buka http://localhost/phpmyadmin, klik New,
+       nama database: pln, collation: utf8mb4_unicode_ci, klik Create
+     - atau lewat perintah:
+       C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE pln CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-  6) Buat tabel-tabelnya
+  7) Buat tabel-tabelnya
        php artisan migrate --force
 
-  7) Pasang dependensi aset
+  8) Pasang dependensi tampilan
        npm install
 
-  8) Naikkan batas unggah PHP (perlu untuk file Excel besar)
-       Sunting php.ini CLI, mis. /etc/php/8.5/cli/php.ini, lalu set:
-         upload_max_filesize = 200M
-         post_max_size       = 210M
-         memory_limit        = -1
-       wajib menyalakan ulang "php artisan serve" setelah mengubah ini.
+  9) Naikkan batas PHP supaya tahan file Excel besar.
+     Buka C:\xampp\php\php.ini, ubah baris berikut (tanda ; di depan dihapus):
+       upload_max_filesize = 200M
+       post_max_size       = 210M
+       memory_limit        = -1
+       max_execution_time  = 0
+     Simpan, lalu tutup terminal dan buka lagi (perubahan ini dibaca saat
+     proses baru dijalankan).
 
-  Catatan: berkas .env, folder vendor/ dan node_modules/ tidak ikut di dalam
-  arsip zip, jadi langkah 2, 3, dan 7 harus dijalankan setelah mengekstrak.
+  Catatan: berkas .env, folder vendor, dan folder node_modules tidak ikut
+  di dalam arsip ZIP, jadi langkah 3, 4, dan 8 harus dijalankan setelah
+  mengekstrak.
 
 
 -------------------------------------------------------------------------
-5. MENJALANKAN APLIKASI (3 PROSES)
+4. MENJALANKAN APLIKASI (3 JENDELA POWERSHELL)
 -------------------------------------------------------------------------
-Buka 2-3 terminal. Masing-masing perintah di bawah dijalankan dari dalam
-container (lihat bagian 3).
+Buka 3 jendela PowerShell, semuanya di folder project (C:\xampp\htdocs\pln).
+Pastikan MySQL sudah jalan dari XAMPP Control Panel.
 
-  Terminal 1 - server aplikasi
+  Jendela 1 - server aplikasi
       php artisan serve --host=127.0.0.1 --port=8000
 
-  Terminal 2 - Vite (aset + chart.js saat mode pengembangan)
+  Jendela 2 - pembangun tampilan (mode pengembangan)
       npm run dev
-      (Vite jalan di port 5173; berkas public/hot menunjuk ke sana)
 
-  Terminal 3 - queue worker (wajib ada supaya import berjalan)
-      bash ops/worker.sh
-      atau kalau tidak ingin lewat skrip:
+  Jendela 3 - worker antrean (wajib saat mengimpor data)
       php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
 
-  Lalu buka peramban:  http://localhost:8000
+Lalu buka peramban:  http://localhost:8000
 
-  Di komputer ini worker juga sudah didaftarkan sebagai systemd user unit:
-      systemctl --user status  pln-queue-1
-      systemctl --user restart pln-queue-1     (ulangi untuk pln-queue-2, -3)
-  Unit tersebut sebenarnya menjalankan berkas yang sama, yaitu ops/worker.sh.
-
-  Untuk mode produksi (tanpa Vite): jalankan "npm run build" sekali, lalu
-  cukup "php artisan serve".
+Keterangan tambahan
+- Kalau malas menjalankan "npm run dev" terus-menerus, jalankan sekali
+  "npm run build", setelah itu cukup 2 jendela: server + worker.
+- Port 8000 sedang dipakai program lain? Pakai --port=8001, dan ubah
+  APP_URL di .env menjadi http://localhost:8001.
+- Ingin worker tetap jalan sambil jendela ditutup? Jalankan:
+  start /B php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+  Tetapi menjalankannya di jendela tersendiri lebih enak, karena progres
+  job bisa dilihat langsung.
+- Komputer ini mati/restart, ulangi lagi bagian 4 (lihat juga bagian 10).
 
 
 -------------------------------------------------------------------------
-6. CARA PAKAI DI BROWSER
+5. CARA PAKAI DI BROWSER
 -------------------------------------------------------------------------
-a) Import data
+a) Mengimpor data
    1. Klik tombol "Import Excel" di kanan atas.
-   2. Pilih berkas .xlsx (isi sheet MASTER) lalu klik Upload.
-   3. Berkas dikirim bertahap 4 MB per bagian, jadi tidak kena batas
-      post_max_size PHP.
-   4. PERHATIAN: import bersifat ganti-total. Tabel pelanggan dan
+   2. Pilih berkas .xlsx (isinya sheet MASTER), lalu klik Upload.
+   3. Berkas dikirim ke server bertahap 4 MB per bagian, jadi file besar
+      tidak mentok di batas post_max_size PHP.
+   4. PENTING: impor bersifat ganti-total. Tabel pelanggan dan
       pemakaian_bulanan dikosongkan dulu, baru diisi data baru. Jangan
-      mengimpor saat sedang ada batch berjalan.
+      mengimpor ketika masih ada batch yang sedang berjalan.
    5. Pantau panel "Riwayat import (5 terakhir)" yang menyegarkan sendiri
-      tiap 5 detik: queued -> preparing (baca berkas & deteksi kolom) ->
-      processing (mis. 40.000/160.564 baris) -> completed (atau failed).
+      tiap 5 detik:
+      queued -> preparing (baca berkas & deteksi kolom) -> processing
+      (mis. 40.000/160.564 baris) -> completed (atau failed).
+   6. Import 160 ribu baris biasanya makan 10-20 menit, tergantung
+      kecepatan komputer.
 
 b) Melihat tabel
-   - Kotak "Cari": mencari IDPEL, NAMA, atau TARIF (tekan tombol Cari / Enter,
-     bukan hanya mengetik).
-   - Pilihan baris per halaman: 25 / 50 / 100 / 250, ditambah navigasi halaman.
-   - Kolom bulan mengikuti header berkas yang terakhir diimpor. Kalau di Excel
-     Anda menambah kolom 202701 lalu impor ulang, kolom itu ikut muncul.
-   - Tiap tahun punya tiga kolom RATA2: PEM (rata-rata kWh bulan yang ada
-     datanya), JN = PEM x 1000 / DAYA, dan KET
-     (rumus: IF(JN<1,"TBT", IF(JN>40,"NORMAL","40JN"))).
-   - Angka ditampilkan bulat mengikuti format sel Excel, nilai aslinya tetap
-     desimal di basis data.
-   - Kolom No, IDPEL, dan NAMA tetap menempel saat tabel digeser ke samping.
+   - Kotak "Cari": mencari IDPEL, NAMA, atau TARIF. Isi kata kuncinya lalu
+     tekan tombol Cari atau tombol Enter (sekadar mengetik tidak
+     menjalankan pencarian).
+   - Pilihan baris per halaman: 25 / 50 / 100 / 250, ada juga navigasi halaman.
+   - Kolom bulan mengikuti header berkas yang terakhir diimpor. Kalau di
+     Excel Anda menambah kolom 202701 lalu impor ulang, kolom itu otomatis
+     muncul tanpa perlu ubah program.
+   - Tiap tahun punya tiga kolom RATA2:
+       PEM = rata-rata kWh dari bulan yang ada datanya
+       JN  = PEM x 1000 / DAYA
+       KET = rumus IF(JN<1,"TBT", IF(JN>40,"NORMAL","40JN"))
+   - Angka ditampilkan bulat mengikuti format sel Excel (94,5 menjadi 95);
+     nilai aslinya tetap desimal di database.
+   - Kolom No, IDPEL, dan NAMA tetap menempel di kiri saat tabel digeser
+     ke samping.
 
 c) Grafik tren pemakaian
    - Klik salah satu nilai IDPEL pada tabel.
-   - Muncul modal "Tren Pemakaian" berisi:
-       * tabel nilai per bulan: baris PEM dan JAM NYALA (angka bulat),
-       * grafik garis dua deret: PEM (sumbu kiri, kWh) dan JAM NYALA
+   - Muncul jendela "Tren Pemakaian" berisi:
+       - tabel nilai per bulan: baris PEM dan JAM NYALA (angka bulat),
+       - grafik garis dua deret: PEM (sumbu kiri, kWh) dan JAM NYALA
          (sumbu kanan) = PEM x 1000 / DAYA.
-   - Sumbu X menampilkan bulan beserta nilai PEM dan JN di bawahnya; kalau
-     layar sempit, label dijarangkan dan grafik bisa digeser ke samping.
-   - Bulan yang belum ada nilainya digambar 0 (mengikuti rumus sheet GRAFIK
-     Excel yang memakai default "0").
+   - Di bawah sumbu X tertera bulan, nilai PEM, dan nilai JN. Pada layar
+     sempit label dijarangkan dan grafik bisa digeser ke samping.
+   - Bulan yang belum ada nilainya digambar 0, mengikuti rumus sheet
+     GRAFIK di Excel yang memakai default "0".
+   - Tutup jendela dengan tombol x, klik di luar kotak, atau tombol Esc.
 
 
 -------------------------------------------------------------------------
-7. FORMAT FILE EXCEL YANG BISA DIIMPOR
+6. FORMAT FILE EXCEL YANG BISA DIIMPOR
 -------------------------------------------------------------------------
-- Nama sheet sumber: MASTER (bisa diubah di config/import.php, kunci "sheet").
-- Baris 1: header. Kolom identitas: A=IDPEL, B=NAMA, C=TARIF, D=DAYA.
-  Kolom berikutnya berisi bulan dengan format YYYYMM (202401, 202402, ...).
-  Kolom bulan dikenali otomatis dari header, jumlahnya bebas.
+- Sheet sumber: MASTER (bisa diubah di config/import.php, kunci "sheet").
+- Baris 1: header.
+      Kolom A = IDPEL, B = NAMA, C = TARIF, D = DAYA
+      Kolom berikutnya berisi bulan dengan format YYYYMM
+      (202401, 202402, ... 202612, 202701, dan seterusnya).
+      Kolom bulan dikenali otomatis dari header, jumlahnya bebas.
 - Baris 2: sub-header (PEM/JN/KET) - diabaikan aplikasi.
 - Baris 3 dan seterusnya: data pelanggan.
 - Kolom RATA2 di berkas tidak dibaca; aplikasi menghitungnya sendiri.
-- Baris yang sedang disembunyikan filter Excel tetap ikut diimpor (semua baris
-  dibaca apa adanya).
+- Baris yang sedang disembunyikan filter Excel tetap ikut diimpor, karena
+  semua baris dibaca apa adanya.
 - Kolom DAYA dipakai untuk menghitung Jam Nyala, jadi sebaiknya terisi.
 
 
 -------------------------------------------------------------------------
-8. KONFIGURASI PENTING
+7. KONFIGURASI PENTING
 -------------------------------------------------------------------------
 config/import.php
     sheet              nama sheet sumber (default MASTER)
-    chunk_size         baris per job chunk (default 20000)
+    chunk_size         jumlah baris per job (default 20000)
     upload_chunk_size  ukuran potongan unggah dari browser (default 4 MB)
     data_start_row     baris awal data (default 3)
-    periode_start/count  hanya cadangan tampilan kolom bulan kalau belum ada
-                       satu pun import (kolom bulan normalnya dari header file)
+    periode_start/count  hanya cadangan tampilan kalau belum ada import;
+                       kolom bulan normalnya dibaca dari header berkas
 
 config/queue.php
-    retry_after = 3600  job chunk butuh waktu lama; nilai kecil membuat job
-                        dianggap gagal lalu diulang saat masih berjalan
+    retry_after = 3600  job chunk butuh waktu lama. Kalau nilainya kecil,
+                        job dianggap gagal dan diulang padahal masih jalan.
 
 .env
     QUEUE_CONNECTION=database   antrean disimpan di tabel jobs
+    APP_URL                     harus sama dengan alamat yang dibuka di browser
 
 
 -------------------------------------------------------------------------
-9. KALAU ADA MASALAH (TROUBLESHOOTING)
+8. KALAU ADA MASALAH
 -------------------------------------------------------------------------
-- Import berhenti di "0 / N baris" atau status queued terus
-  Penyebab tersering: queue worker tidak jalan. Cek dengan
-      systemctl --user status pln-queue-1
-  atau jalankan manual: bash ops/worker.sh
+- Muncul "'php' is not recognized as an internal or external command"
+  PHP belum masuk PATH. Pakai path lengkap, contoh:
+      C:\xampp\php\php.exe artisan serve
+  atau tambahkan C:\xampp\php (dan C:\Program Files\nodejs) ke PATH Windows.
+
+- Composer menolak karena versi PHP kurang
+  Laravel 12 butuh PHP 8.2+. Cek dengan "php -v". Kalau XAMPP Anda masih
+  PHP 8.0 atau 8.1, pasang XAMPP versi 8.2 ke atas.
+
+- Import diam di "0 / N baris" atau status queued terus
+  Penyebab tersering: worker antrean tidak jalan. Pastikan Jendela 3
+  (queue:work) benar-benar berjalan.
 
 - Muncul "The POST data is too large"
-  post_max_size di php.ini belum berlaku. Pastikan tidak ada proses
-  "php artisan serve" lama yang masih memegang port 8000, lalu jalankan ulang.
+  post_max_size di php.ini belum terbaca. Tutup semua proses PHP lama
+  (Task Manager), lalu jalankan lagi "php artisan serve".
 
 - Job gagal berulang
-      php artisan queue:failed      (daftar job gagal)
-      php artisan queue:retry all   (coba lagi)
-      tail -n 50 storage/logs/laravel.log
+      php artisan queue:failed          (lihat daftar job gagal)
+      php artisan queue:retry all       (coba jalankan lagi)
+      notepad storage\logs\laravel.log  (lihat keterangan kesalahan)
 
-- Worker keluar sendiri (exit code 12) di tengah import
-  Batas memori worker terlalu kecil. Selalu pakai --memory=1024.
+- Worker berhenti sendiri di tengah import
+  Batas memori worker kurang. Pastikan memakai --memory=1024 dan
+  --timeout=3600.
 
-- Sudah mengubah kode di app/Jobs tapi perilakunya tidak berubah
-  Worker memuat kode lama di memori. Jalankan:
+- Sudah mengubah program di app\Jobs tetapi perilakunya tidak berubah
+  Worker masih memuat kode lama. Jalankan:
       php artisan queue:restart
 
+- Port 8000 atau 5173 sudah dipakai
+  Ganti port: php artisan serve --port=8001 (sesuaikan APP_URL), atau
+  hentikan program lain yang memakai port tersebut.
+
+- Import terasa sangat lambat
+  Pastikan MySQL berjalan normal dan jangan menjalankan banyak worker
+  sekaligus (1 worker sudah cukup). Bisa juga menaikkan innodb_buffer_pool_size
+  di C:\xampp\mysql\bin\my.ini (mis. 512M) lalu restart MySQL.
+
 - Tabel kosong setelah import selesai
-  Cek jumlah barisnya di database:
-      mysql -h127.0.0.1 -uroot -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
+  Periksa jumlah barisnya lewat phpMyAdmin, atau:
+      C:\xampp\mysql\bin\mysql.exe -u root -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
 
 
 -------------------------------------------------------------------------
-10. PERINTAH YANG SERING DIPAKAI
+9. PERINTAH YANG SERING DIPAKAI
 -------------------------------------------------------------------------
     # jumlah data
-    mysql -h127.0.0.1 -uroot -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
+    C:\xampp\mysql\bin\mysql.exe -u root -D pln -e "select count(*) from pelanggan; select count(*) from pemakaian_bulanan;"
 
     # riwayat import
-    mysql -h127.0.0.1 -uroot -D pln -e "select id, file_name, status, total_rows, processed_rows from import_batches order by id desc limit 5"
+    C:\xampp\mysql\bin\mysql.exe -u root -D pln -e "select id, file_name, status, total_rows, processed_rows from import_batches order by id desc limit 5"
 
-    # daftar periode yang ada datanya
-    mysql -h127.0.0.1 -uroot -D pln -e "select periode, count(*) from pemakaian_bulanan group by periode order by periode"
+    # daftar bulan yang sudah ada datanya
+    C:\xampp\mysql\bin\mysql.exe -u root -D pln -e "select periode, count(*) from pemakaian_bulanan group by periode order by periode"
 
-    # kosongkan semua data dan bangun ulang tabel
+    # hapus semua data dan bangun ulang tabel
     php artisan migrate:fresh --force
 
     # muat ulang kode job di worker
     php artisan queue:restart
 
-    # build aset untuk produksi
+    # bangun tampilan sekali saja (tanpa npm run dev)
     npm run build
+
+
+-------------------------------------------------------------------------
+10. RINGKASAN CEPAT (TIAP KALI MAU BEKERJA)
+-------------------------------------------------------------------------
+    1. XAMPP Control Panel -> Start MySQL
+    2. Jendela 1: php artisan serve --host=127.0.0.1 --port=8000
+    3. Jendela 2: npm run dev
+    4. Jendela 3: php artisan queue:work --tries=3 --sleep=1 --memory=1024 --timeout=3600
+    5. Buka browser: http://localhost:8000
+    6. Import data, lihat tabel, klik IDPEL untuk melihat grafik tren
 
 Selamat bekerja.
