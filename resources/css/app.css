@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ------------------------------------------------------------------
+   Tabel data lebar (sheet MASTER: 50 kolom).
+
+   - Container scroll dua arah, header menempel di atas.
+   - Kolom identitas (No, IDPEL, NAMA) baru dibuat menempel di kiri setelah
+     JS berhasil mengukur lebar kolomnya (class .kolom-sticky). Tanpa itu
+     kolom TIDAK menempel, supaya tidak ada kemungkinan kolom saling menimpa
+     kalau posisinya salah.
+   ------------------------------------------------------------------ */
+.tabel-data {
+    max-height: 70vh;
+    overflow: auto;
+    overscroll-behavior-x: contain;
+}
+
+.tabel-data table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.tabel-data thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: #f9fafb;
+    box-shadow: inset 0 -1px 0 #e5e7eb;
+}
+
+/* Baris header kedua (PEM/JN/KET) menempel di bawah baris pertama;
+   --tinggi-header diisi lewat JS sesuai tinggi baris pertama. */
+.tabel-data thead tr:nth-child(2) th {
+    top: var(--tinggi-header, 2rem);
+}
+
+.tabel-data .kol-nama > span {
+    display: block;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tabel-data tbody tr:hover td {
+    background-color: #f9fafb;
+}
+
+/* Kolom RATA2 diberi batas kiri supaya batas kelompok tahun kelihatan */
+.tabel-data .batas-tahun {
+    border-left: 1px solid #e5e7eb;
+}
+
+/* --- kolom identitas menempel (hanya aktif setelah diukur JS) --- */
+.tabel-data.kolom-sticky .kol-no,
+.tabel-data.kolom-sticky .kol-idpel,
+.tabel-data.kolom-sticky .kol-nama {
+    position: sticky;
+    z-index: 10;
+    background-color: #ffffff;
+}
+
+.tabel-data.kolom-sticky thead .kol-no,
+.tabel-data.kolom-sticky thead .kol-idpel,
+.tabel-data.kolom-sticky thead .kol-nama {
+    z-index: 30;
+}
+
+.tabel-data.kolom-sticky .kol-no {
+    left: 0;
+}
+
+.tabel-data.kolom-sticky .kol-idpel {
+    left: var(--sticky-idpel, 0px);
+}
+
+.tabel-data.kolom-sticky .kol-nama {
+    left: var(--sticky-nama, 0px);
+    box-shadow: inset -1px 0 0 #e5e7eb;
+}
+
+.tabel-data.kolom-sticky thead .kol-nama {
+    box-shadow: inset -1px 0 0 #e5e7eb, inset 0 -1px 0 #e5e7eb;
+}
+
+@media (max-width: 640px) {
+    .tabel-data {
+        max-height: 60vh;
+    }
+
+    .tabel-data .kol-nama > span {
+        max-width: 6.5rem;
+    }
+}
