@@ -274,9 +274,11 @@ php.ini (C:\xampp\php\php.ini) - TIDAK perlu diubah
 
 - Worker berhenti sendiri di tengah import
   Pemakaian memori job melewati batas --memory. Pakai --memory=128 dan
-  --timeout=3600. Untuk file Excel yang jauh lebih besar (mis. di atas
-  100 MB), naikkan memory_limit di php.ini lebih dulu (mis. 512M atau -1),
-  baru naikkan --memory.
+  --timeout=3600, lalu jalankan lagi perintah worker-nya: job dilanjutkan
+  dari baris yang belum selesai (data yang sudah masuk tidak diulang).
+  Untuk file Excel yang jauh lebih besar (mis. di atas 100 MB), naikkan
+  memory_limit di php.ini lebih dulu (mis. 512M atau -1), baru naikkan
+  --memory.
 
 - Sudah mengubah program di app\Jobs tetapi perilakunya tidak berubah
   Worker masih memuat kode lama. Jalankan:
