@@ -1,34 +1,30 @@
 @extends('layouts.app')
 
-@section('title', 'Data Table')
+@section('title', 'DATA PELANGGAN')
 
 @section('content')
     <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-            <h1 class="text-lg font-semibold sm:text-xl">Data Table</h1>
+            <h1 class="text-lg font-semibold sm:text-xl">DATA PELANGGAN</h1>
             <p class="text-xs text-gray-500 sm:text-sm">
-                Kolom mengikuti sheet MASTER: IDPEL, NAMA, TARIF, DAYA, {{ $periodeList[0] }}–{{ end($periodeList) }},
-                RATA2 {{ implode(' / ', $tahunList) }}
                 &middot; total pelanggan {{ number_format($pelanggan->total(), 0, ',', '.') }}
                 &middot; import {{ number_format($chunkSize, 0, ',', '.') }} baris per chunk
-            </p>
-            <p class="mt-1 text-xs text-gray-400">
-                Geser tabel ke kanan/kiri untuk melihat kolom bulan; kolom No, IDPEL, dan NAMA tetap terlihat.
             </p>
         </div>
 
         <button type="button" id="btnImportExcel"
-                class="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto">
+            class="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto">
             Import Excel
         </button>
     </div>
 
     {{-- Filter & pagination sisi server: hanya baris halaman aktif yang diambil dari database --}}
-    <form method="GET" action="{{ route('home') }}" class="mb-3 flex flex-wrap items-end gap-2 rounded border border-gray-200 bg-white p-3">
+    <form method="GET" action="{{ route('home') }}"
+        class="mb-3 flex flex-wrap items-end gap-2 rounded border border-gray-200 bg-white p-3">
         <div class="min-w-0 flex-1 sm:flex-none">
             <label for="search" class="mb-1 block text-xs font-medium text-gray-600">Cari IDPEL / NAMA / TARIF</label>
             <input type="search" id="search" name="search" value="{{ $search }}" placeholder="mis. 1712030 atau R1MT"
-                   class="w-full rounded border border-gray-300 px-3 py-1.5 text-sm sm:w-64">
+                class="w-full rounded border border-gray-300 px-3 py-1.5 text-sm sm:w-64">
         </div>
 
         <div>
@@ -46,20 +42,21 @@
 
         @if ($search !== '')
             <a href="{{ route('home', ['per_page' => $perPage]) }}"
-               class="rounded border border-gray-300 px-4 py-1.5 text-sm hover:bg-gray-50">
+                class="rounded border border-gray-300 px-4 py-1.5 text-sm hover:bg-gray-50">
                 Reset
             </a>
         @endif
 
         <p class="ml-auto self-center text-xs text-gray-500">
             @if ($pelanggan->total() > 0)
-                Menampilkan {{ number_format($pelanggan->firstItem(), 0, ',', '.') }}–{{ number_format($pelanggan->lastItem(), 0, ',', '.') }}
+                Menampilkan
+                {{ number_format($pelanggan->firstItem(), 0, ',', '.') }}–{{ number_format($pelanggan->lastItem(), 0, ',', '.') }}
                 dari {{ number_format($pelanggan->total(), 0, ',', '.') }} pelanggan
                 @if ($search !== '')
                     (filter: &quot;{{ $search }}&quot;)
                 @endif
             @else
-                Tidak ada data yang cocok{{ $search !== '' ? ' dengan filter "'.$search.'"' : '' }}
+                Tidak ada data yang cocok{{ $search !== '' ? ' dengan filter "' . $search . '"' : '' }}
             @endif
         </p>
     </form>
@@ -71,9 +68,8 @@
     @endif
 
     @if ($batches->isNotEmpty())
-        <div class="mb-6 rounded border border-gray-200 bg-white" id="riwayatImport"
-             data-url="{{ route('import.status') }}"
-             data-running="{{ $batches->contains(fn ($batch) => $batch->isRunning()) ? '1' : '0' }}">
+        <div class="mb-6 rounded border border-gray-200 bg-white" id="riwayatImport" data-url="{{ route('import.status') }}"
+            data-running="{{ $batches->contains(fn($batch) => $batch->isRunning()) ? '1' : '0' }}">
             <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <span class="text-sm font-medium text-gray-700">Riwayat import (5 terakhir)</span>
                 <span class="hidden text-xs text-amber-700" id="riwayatImportLoading">
@@ -133,9 +129,9 @@
                         <td class="kol-no px-2 py-2 sm:px-3">{{ $pelanggan->firstItem() + $loop->index }}</td>
                         <td class="kol-idpel px-2 py-2 font-mono sm:px-3">
                             <button type="button"
-                                    class="link-idpel rounded font-mono text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                                    data-idpel="{{ $row['idpel'] }}"
-                                    title="Klik untuk melihat grafik pemakaian">{{ $row['idpel'] }}</button>
+                                class="link-idpel rounded font-mono text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                data-idpel="{{ $row['idpel'] }}"
+                                title="Klik untuk melihat grafik pemakaian">{{ $row['idpel'] }}</button>
                         </td>
                         <td class="kol-nama px-2 py-2 font-mono sm:px-3">
                             <span title="{{ $row['nama'] }}">{{ $row['nama'] }}</span>
@@ -144,12 +140,18 @@
                         <td class="px-2 py-2 text-right sm:px-3">{{ \App\Support\Angka::daya($row['daya']) }}</td>
 
                         @foreach ($periodeList as $periode)
-                            <td class="px-2 py-2 text-right sm:px-3">{{ \App\Support\Angka::kwh($row['bulanan'][$periode] ?? null) }}</td>
+                            <td class="px-2 py-2 text-right sm:px-3">
+                                {{ \App\Support\Angka::kwh($row['bulanan'][$periode] ?? null) }}
+                            </td>
                         @endforeach
 
                         @foreach ($tahunList as $tahun)
-                            <td class="batas-tahun px-2 py-2 text-right sm:px-3">{{ \App\Support\Angka::rata2($row['rata2'][$tahun]['pem'] ?? null) }}</td>
-                            <td class="px-2 py-2 text-right sm:px-3">{{ \App\Support\Angka::rata2($row['rata2'][$tahun]['jn'] ?? null) }}</td>
+                            <td class="batas-tahun px-2 py-2 text-right sm:px-3">
+                                {{ \App\Support\Angka::rata2($row['rata2'][$tahun]['pem'] ?? null) }}
+                            </td>
+                            <td class="px-2 py-2 text-right sm:px-3">
+                                {{ \App\Support\Angka::rata2($row['rata2'][$tahun]['jn'] ?? null) }}
+                            </td>
                             <td @class([
                                 'px-2 py-2 text-center sm:px-3',
                                 'text-gray-400' => ($row['rata2'][$tahun]['ket'] ?? null) === null,
@@ -177,32 +179,35 @@
         <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded bg-white p-4 sm:p-5">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Import Excel</h2>
-                <button type="button" id="btnCloseImportExcel" class="text-2xl leading-none text-gray-400 hover:text-gray-600"
-                        aria-label="Tutup">&times;</button>
+                <button type="button" id="btnCloseImportExcel"
+                    class="text-2xl leading-none text-gray-400 hover:text-gray-600" aria-label="Tutup">&times;</button>
             </div>
 
             <form id="formImportExcel" method="POST" action="{{ route('import.store') }}" enctype="multipart/form-data"
-                  data-chunk-url="{{ route('import.chunk') }}"
-                  data-chunk-size="{{ (int) config('import.upload_chunk_size') }}">
+                data-chunk-url="{{ route('import.chunk') }}"
+                data-chunk-size="{{ (int) config('import.upload_chunk_size') }}">
                 @csrf
 
-                <label for="fileImportExcel" class="mb-1 block text-sm font-medium text-gray-700">File Excel (sheet MASTER)</label>
+                <label for="fileImportExcel" class="mb-1 block text-sm font-medium text-gray-700">File Excel (sheet
+                    MASTER)</label>
                 <input type="file" name="file" id="fileImportExcel" accept=".xlsx,.xls" required
-                       class="block w-full rounded border border-gray-300 p-2 text-sm">
+                    class="block w-full rounded border border-gray-300 p-2 text-sm">
 
                 @error('file')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
 
                 <p class="mt-2 text-xs text-gray-500">
-                    File besar dikirim bertahap ({{ number_format(config('import.upload_chunk_size') / 1048576, 1, ',', '.') }} MB per bagian),
+                    File besar dikirim bertahap
+                    ({{ number_format(config('import.upload_chunk_size') / 1048576, 1, ',', '.') }} MB per bagian),
                     lalu dibaca {{ number_format($chunkSize, 0, ',', '.') }} baris per job. Data lama akan diganti.
                 </p>
 
                 <div id="importProgress" class="mt-3 hidden">
                     <div class="mb-1 flex items-center justify-between text-xs text-gray-600">
                         <span class="flex items-center gap-1.5">
-                            <span id="importSpinner" class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></span>
+                            <span id="importSpinner"
+                                class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></span>
                             <span id="importProgressText">Mengunggah&hellip;</span>
                         </span>
                         <span id="importProgressPersen">0%</span>
@@ -217,11 +222,11 @@
 
                 <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <button type="button" id="btnCancelImportExcel"
-                            class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">
+                        class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">
                         Batal
                     </button>
                     <button type="submit" id="btnSubmitImportExcel"
-                            class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                         Upload
                     </button>
                 </div>
@@ -230,17 +235,16 @@
     </div>
 
     {{-- Modal grafik pemakaian per IDPEL --}}
-    <div id="modalGrafikPemakaian"
-         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-3 sm:p-4"
-         data-url-template="{{ route('pelanggan.grafik', ['idpel' => '__IDPEL__']) }}">
+    <div id="modalGrafikPemakaian" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-3 sm:p-4"
+        data-url-template="{{ route('pelanggan.grafik', ['idpel' => '__IDPEL__']) }}">
         <div class="flex max-h-[94vh] w-full max-w-[95vw] flex-col rounded bg-white p-4 sm:p-5">
             <div class="mb-3 flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <h2 class="text-base font-semibold sm:text-lg">Tren Pemakaian</h2>
                     <p id="grafikIdentitas" class="mt-0.5 truncate text-xs text-gray-600 sm:text-sm"></p>
                 </div>
-                <button type="button" id="btnCloseGrafik"
-                        class="text-2xl leading-none text-gray-400 hover:text-gray-600" aria-label="Tutup">&times;</button>
+                <button type="button" id="btnCloseGrafik" class="text-2xl leading-none text-gray-400 hover:text-gray-600"
+                    aria-label="Tutup">&times;</button>
             </div>
 
             {{-- Tabel nilai per bulan: diisi JavaScript dari data yang sama dengan grafik --}}
@@ -253,7 +257,8 @@
                     </div>
                 </div>
                 <p id="grafikStatus"
-                   class="pointer-events-none absolute inset-0 hidden items-center justify-center text-sm text-gray-500"></p>
+                    class="pointer-events-none absolute inset-0 hidden items-center justify-center text-sm text-gray-500">
+                </p>
             </div>
 
         </div>
@@ -870,9 +875,9 @@
                                     terkirim / file.size * 100,
                                     'Bagian ' + indeks + '/' + jumlahPotongan + ' terkirim',
                                     ukuranTeks(terkirim) + ' / ' + ukuranTeks(file.size)
-                                        + ' · ' + ukuranTeks(kecepatan) + '/dtk'
-                                        + ' · sisa ~' + durasiTeks(sisa)
-                                        + ' · ' + durasiTeks(detik) + ' berjalan'
+                                    + ' · ' + ukuranTeks(kecepatan) + '/dtk'
+                                    + ' · sisa ~' + durasiTeks(sisa)
+                                    + ' · ' + durasiTeks(detik) + ' berjalan'
                                 );
 
                                 if (hasil.isi.status === 'selesai') {
